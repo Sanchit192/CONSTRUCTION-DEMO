@@ -259,6 +259,9 @@ export function DocumentUpload({
           <p className="text-sm">
             Upload to <strong>{selectedProject || "—"}</strong>
           </p>
+          <p className="mt-2 text-xs text-gray-500">
+    Supported file types: PDF, DOC, DOCX
+  </p>
         </label>
       </div>
 
