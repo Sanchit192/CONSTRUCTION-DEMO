@@ -1,0 +1,16 @@
+{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "swa-deploy-./dist---deployment-token-e12ca6c2c7746683ebdaa9340910785208c8ae9b5490212272a4010647db154401-22c5fc42-2018-4ece-abe0-088d5b6932dc00f291504249e80f---env-production": {
+      "appLocation": "doc-chat-summarizer-main",
+      "apiLocation": "doc-function-app",
+      "outputLocation": "dist",
+      "apiLanguage": "python",
+      "apiVersion": "3.8",
+      "appBuildCommand": "npm run build",
+      "apiBuildCommand": "npm run build --if-present",
+      "run": "npm run dev",
+      "appDevserverUrl": "http://localhost:5173"
+    }
+  }
+}

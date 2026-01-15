@@ -1,0 +1,211 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DocAI Design System - Clean, professional, productivity-focused */
+
+@layer base {
+  @layer base {
+  :root {
+    /* Backgrounds */
+    --background: 210 20% 98%; /* #B8DDE1 */
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+
+    /* Text */
+    --foreground: 200 100% 12%; /* #002C3F */
+    --card-foreground: 200 100% 12%;
+    --popover-foreground: 200 100% 12%;
+
+    /* Brand */
+    --primary: 200 100% 12%; /* #002C3F */
+    --primary-foreground: 0 0% 100%;
+
+    /* Accent */
+    --accent: 42 100% 55%; /* #FFB81C */
+    --accent-foreground: 200 100% 12%;
+
+    /* Muted / UI */
+    --muted: 190 45% 88%; /* #B8DDE1 */
+    --muted-foreground: 200 40% 30%;
+
+    /* Borders / Inputs */
+    --border: 200 35% 80%;
+    --input: 200 35% 80%;
+    --ring: 42 100% 55%; /* Yellow focus */
+
+    --radius: 0.5rem;
+  }
+}
+
+
+  .dark {
+    --background: 220 25% 8%;
+    --foreground: 210 20% 98%;
+
+    --card: 220 25% 12%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 220 25% 12%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 199 89% 55%;
+    --primary-foreground: 220 25% 8%;
+
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    --muted: 220 20% 18%;
+    --muted-foreground: 210 15% 60%;
+
+    --accent: 172 66% 45%;
+    --accent-foreground: 220 25% 8%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 220 20% 18%;
+    --input: 220 20% 20%;
+    --ring: 199 89% 55%;
+
+    --shadow-soft: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
+    --shadow-medium: 0 8px 30px -6px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 40px -10px hsl(199 89% 55% / 0.4);
+
+    --sidebar-background: 220 25% 10%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 199 89% 55%;
+    --sidebar-primary-foreground: 220 25% 8%;
+    --sidebar-accent: 220 20% 18%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 199 89% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  code, pre {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-[var(--shadow-soft)];
+  }
+
+  .gradient-text {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .upload-zone {
+    @apply border-2 border-dashed border-border rounded-xl transition-all duration-300;
+  }
+
+  .upload-zone:hover,
+  .upload-zone.drag-over {
+    @apply border-primary bg-primary/5;
+  }
+
+  .chat-bubble-user {
+    @apply bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3;
+  }
+
+  .chat-bubble-assistant {
+    @apply bg-secondary text-secondary-foreground rounded-2xl rounded-bl-md px-4 py-3;
+  }
+
+  .typing-indicator {
+    @apply flex gap-1 items-center;
+  }
+
+  .typing-indicator span {
+    @apply w-2 h-2 rounded-full bg-muted-foreground/50;
+    animation: typing 1.4s infinite ease-in-out;
+  }
+
+  .typing-indicator span:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes typing {
+    0%, 60%, 100% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+    30% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .chat-float {
+  position: fixed;
+  bottom: 6rem;
+  right: 1.5rem;
+  z-index: 50;
+}
+
+@media (min-width: 1280px) {
+  .chat-float {
+    right: calc((100vw - 1280px) / 2 - 380px);
+  }
+}
+
+}
