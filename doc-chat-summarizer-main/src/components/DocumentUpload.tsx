@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Upload, FileText, Loader2, Flag,Trash2 } from "lucide-react";
+import { Upload, FileText, Loader2, Flag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
+const API_BASE =
+  "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
 
 /* ---------------- TYPES ---------------- */
 interface UploadedFile {
@@ -27,7 +28,7 @@ interface DocumentUploadProps {
   onFilesSelect: (files: string[]) => void;
 
   /** FINAL FILE */
-  onFinalFileSelect: (fileName: string) => void;
+  onFinalFileSelect: (fileName: string | null) => void;
 
   /** COMPARE (summary trigger) */
   onCompare: (project: string, files: string[]) => void;
@@ -46,7 +47,7 @@ export function DocumentUpload({
   onFilesSelect,
   onFinalFileSelect,
   onCompare,
-  onProjectSelect, // ✅ added
+  onProjectSelect,
 }: DocumentUploadProps) {
   const navigate = useNavigate();
 
@@ -57,7 +58,9 @@ export function DocumentUpload({
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [finalFile, setFinalFile] = useState<string | null>(null);
 
-  const [finalFileByProject, setFinalFileByProject] = useState<Record<string, string>>({});
+  const [finalFileByProject, setFinalFileByProject] = useState<
+    Record<string, string>
+  >({});
   const [loading, setLoading] = useState(false);
 
   /* ---------------- FETCH PROJECTS ---------------- */
@@ -74,7 +77,6 @@ export function DocumentUpload({
 
     setFiles(data.map((f: string) => ({ name: f })));
 
-    // restore FINAL for this project
     const finalForProject = finalFileByProject[project] || null;
     setFinalFile(finalForProject);
 
@@ -96,9 +98,7 @@ export function DocumentUpload({
     setSelectedProject(value);
     setNewProject("");
     fetchFiles(value);
-
-    // ✅ notify parent about selected project
-    if (onProjectSelect) onProjectSelect(value);
+    onProjectSelect?.(value);
   };
 
   const handleCreateProject = () => {
@@ -111,9 +111,7 @@ export function DocumentUpload({
     setFinalFile(null);
     setNewProject("");
     onFilesSelect([]);
-
-    // ✅ notify parent about new project
-    if (onProjectSelect) onProjectSelect(newProject);
+    onProjectSelect?.(newProject);
   };
 
   /* ---------------- FILE UPLOAD ---------------- */
@@ -139,13 +137,12 @@ export function DocumentUpload({
 
   /* ---------------- FILE SELECTION ---------------- */
   const toggleFile = (fileName: string) => {
-    if (finalFile) return; // lock after finalize
+    if (finalFile) return;
 
     setSelectedFiles((prev) => {
       const updated = prev.includes(fileName)
         ? prev.filter((f) => f !== fileName)
         : [...prev, fileName];
-
       onFilesSelect(updated);
       return updated;
     });
@@ -153,29 +150,27 @@ export function DocumentUpload({
 
   /* ---------------- MARK FINAL ---------------- */
   const markAsFinal = (fileName: string) => {
-  if (finalFile === fileName) {
-    // ✅ unmark if clicking again
-    setFinalFile(null);
-    setSelectedFiles([]);
-    setFinalFileByProject((prev) => {
-      const updated = { ...prev };
-      delete updated[selectedProject];
-      return updated;
-    });
-    onFilesSelect([]);
-    onFinalFileSelect(null);
-  } else {
-    // mark as final
-    setFinalFile(fileName);
-    setSelectedFiles([fileName]);
-    setFinalFileByProject((prev) => ({
-      ...prev,
-      [selectedProject]: fileName,
-    }));
-    onFilesSelect([fileName]);
-    onFinalFileSelect(fileName);
-  }
-};
+    if (finalFile === fileName) {
+      setFinalFile(null);
+      setSelectedFiles([]);
+      setFinalFileByProject((prev) => {
+        const updated = { ...prev };
+        delete updated[selectedProject];
+        return updated;
+      });
+      onFilesSelect([]);
+      onFinalFileSelect(null);
+    } else {
+      setFinalFile(fileName);
+      setSelectedFiles([fileName]);
+      setFinalFileByProject((prev) => ({
+        ...prev,
+        [selectedProject]: fileName,
+      }));
+      onFilesSelect([fileName]);
+      onFinalFileSelect(fileName);
+    }
+  };
 
   /* ---------------- FINALIZE ---------------- */
   const handleFinalize = () => {
@@ -190,34 +185,20 @@ export function DocumentUpload({
   };
 
   const handleDeleteFile = async (fileName: string) => {
-  if (!selectedProject) {
-    alert("Select a project first");
-    return;
-  }
+    if (!selectedProject) return;
 
-  if (!confirm(`Are you sure you want to delete ${fileName}?`)) return;
+    if (!confirm(`Are you sure you want to delete ${fileName}?`)) return;
 
-  try {
-    const res = await fetch(
-      `${API_BASE}/projects/${selectedProject}/files?fileName=${encodeURIComponent(fileName)}`,
-      {
-        method: "DELETE",
-      }
+    await fetch(
+      `${API_BASE}/projects/${selectedProject}/files?fileName=${encodeURIComponent(
+        fileName
+      )}`,
+      { method: "DELETE" }
     );
 
-    if (!res.ok) {
-      const error = await res.json();
-      alert(`Failed to delete file: ${error.message || res.statusText}`);
-      return;
-    }
-
-    // ✅ remove from UI
     setFiles((prev) => prev.filter((f) => f.name !== fileName));
-
-    // ✅ remove from selectedFiles if it was selected
     setSelectedFiles((prev) => prev.filter((f) => f !== fileName));
 
-    // ✅ unmark final if it was final
     if (finalFile === fileName) {
       setFinalFile(null);
       setFinalFileByProject((prev) => {
@@ -228,14 +209,7 @@ export function DocumentUpload({
       onFilesSelect([]);
       onFinalFileSelect(null);
     }
-
-    alert(`${fileName} deleted successfully`);
-  } catch (err) {
-    console.error(err);
-    alert("Error deleting file");
-  }
-};
-
+  };
 
   /* ---------------- UI ---------------- */
   return (
@@ -286,62 +260,62 @@ export function DocumentUpload({
             Upload to <strong>{selectedProject || "—"}</strong>
           </p>
         </label>
-        
       </div>
 
       {/* FILE LIST */}
       {files.length > 0 && (
         <div className="space-y-2">
           <h3 className="font-medium">Files</h3>
-{files.map((file) => {
-  const isFinal = finalFile === file.name;
 
-  return (
-    <div
-      key={file.name}
-      className={`flex items-center justify-between p-3 rounded border ${
-        isFinal ? "border-green-500 bg-green-50" : "bg-gray-100"
-      }`}
-    >
-      <label className="flex items-center gap-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={selectedFiles.includes(file.name)}
-          disabled={!!finalFile}
-          onChange={() => toggleFile(file.name)}
-        />
-        <FileText className="w-4 h-4" />
-        <span className="truncate">{file.name}</span>
-        {/* {isFinal && (
-          <span className="text-xs px-2 py-0.5 rounded bg-green-600 text-white">
-            FINAL
-          </span>
-        )} */}
-      </label>
+          {files.map((file) => {
+            const isFinal = finalFile === file.name;
 
-      <div className="flex items-center gap-2">
-        {/* Flag toggle */}
-        <button
-          onClick={() => markAsFinal(file.name)}
-          className={`p-1 ${
-            isFinal ? "text-green-600" : "text-gray-400 hover:text-green-600"
-          }`}
-        >
-          <Flag className="w-5 h-5" />
-        </button>
+            return (
+              <div
+                key={file.name}
+                className={`flex items-center justify-between p-3 rounded border ${
+                  isFinal ? "border-green-500 bg-green-50" : "bg-gray-100"
+                }`}
+              >
+                {/* ✅ FIXED WRAPPING */}
+                <label className="flex items-start gap-3 cursor-pointer w-full">
+                  <input
+                    type="checkbox"
+                    checked={selectedFiles.includes(file.name)}
+                    disabled={!!finalFile}
+                    onChange={() => toggleFile(file.name)}
+                    className="mt-1"
+                  />
 
-        {/* Delete button */}
-        <button
-          onClick={() => handleDeleteFile(file.name)}
-          className="p-1 text-red-500 hover:text-red-700"
-        >
-          <Trash2 className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
-  );
-})}
+                  <FileText className="w-4 h-4 mt-1 flex-shrink-0" />
 
+                  <span className="break-words whitespace-normal text-sm max-w-[18rem]">
+                    {file.name}
+                  </span>
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => markAsFinal(file.name)}
+                    className={`p-1 ${
+                      isFinal
+                        ? "text-green-600"
+                        : "text-gray-400 hover:text-green-600"
+                    }`}
+                  >
+                    <Flag className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteFile(file.name)}
+                    className="p-1 text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
