@@ -14,7 +14,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const API_BASE = "http://localhost:7071/api";
+// const API_BASE = "http://localhost:7071/api";
+const API_BASE =
+  "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
 
 /* ---------------- TYPES ---------------- */
 interface UploadedFile {
