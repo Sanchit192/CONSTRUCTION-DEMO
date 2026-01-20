@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { FileText, Sparkles, Download } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -5,7 +6,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { useRef } from "react";
 
 interface DocumentSummaryProps {
   fileName: string | null;
@@ -19,6 +19,23 @@ export function DocumentSummary({
   isLoading,
 }: DocumentSummaryProps) {
   const summaryRef = useRef<HTMLDivElement>(null);
+
+  // --- Local state for local storage ---
+  const [storedSummary, setStoredSummary] = useState<string | null>(null);
+
+  // Load summary from local storage on mount
+  useEffect(() => {
+    const savedSummary = localStorage.getItem("documentSummary");
+    if (savedSummary) setStoredSummary(savedSummary);
+  }, []);
+
+  // Update local storage whenever `summary` changes
+  useEffect(() => {
+    if (summary) {
+      localStorage.setItem("documentSummary", summary);
+      setStoredSummary(summary);
+    }
+  }, [summary]);
 
   const handleDownloadPDF = async () => {
     if (!summaryRef.current) return;
@@ -45,19 +62,15 @@ export function DocumentSummary({
     pdf.save(`${fileName || "document-summary"}.pdf`);
   };
 
-  // --- Helper to extract Final Recommendation ---
-  const splitFinalRecommendation = (summary: string) => {
-    const lines = summary.split("\n");
+  const splitFinalRecommendation = (text: string) => {
+    const lines = text.split("\n");
     const frStart = lines.findIndex((line) =>
       line.toLowerCase().includes("final recommendation")
     );
-    if (frStart === -1) return { finalRecommendation: "", rest: summary };
+    if (frStart === -1) return { finalRecommendation: "", rest: text };
 
-    // Capture lines until next empty line
     let frEnd = frStart + 1;
-    while (frEnd < lines.length && lines[frEnd].trim() !== "") {
-      frEnd++;
-    }
+    while (frEnd < lines.length && lines[frEnd].trim() !== "") frEnd++;
 
     const finalRecommendation = lines.slice(frStart, frEnd).join("\n");
     const rest = lines.slice(frEnd).join("\n");
@@ -65,19 +78,15 @@ export function DocumentSummary({
   };
 
   return (
-    <Card className="h-[450px] w-full flex flex-col shadow-md border border-slate-200">
-      {/* HEADER */}
+    <Card className="h-[450px] w-full flex flex-col shadow-md border border-slate-200 z-0">
       <CardHeader className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3">
         <div className="flex justify-between items-center w-full">
-          {/* Title */}
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[#F5A623]" />
             <span className="text-lg font-semibold text-slate-900">
               Document Comparison
             </span>
           </div>
-
-          {/* Download */}
           <button
             onClick={handleDownloadPDF}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-100 transition"
@@ -86,7 +95,6 @@ export function DocumentSummary({
             Download PDF
           </button>
         </div>
-
         {fileName && (
           <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 truncate">
             <FileText className="w-4 h-4" />
@@ -95,11 +103,7 @@ export function DocumentSummary({
         )}
       </CardHeader>
 
-      {/* CONTENT */}
-      <CardContent
-        ref={summaryRef}
-        className="flex-1 overflow-y-auto px-4 py-3"
-      >
+      <CardContent ref={summaryRef} className="flex-1 overflow-y-auto px-4 py-3">
         {isLoading && (
           <div className="space-y-3">
             <Skeleton className="h-4 w-full" />
@@ -108,12 +112,10 @@ export function DocumentSummary({
           </div>
         )}
 
-        {!isLoading && summary && (() => {
-          const { finalRecommendation, rest } = splitFinalRecommendation(summary);
-
+        {!isLoading && storedSummary && (() => {
+          const { finalRecommendation, rest } = splitFinalRecommendation(storedSummary);
           return (
             <div className="prose prose-slate max-w-full break-words text-sm">
-              {/* Highlighted Final Recommendation */}
               {finalRecommendation && (
                 <div className="border-l-4 border-[#F5A623] bg-amber-50 p-4 rounded my-4">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -121,8 +123,6 @@ export function DocumentSummary({
                   </ReactMarkdown>
                 </div>
               )}
-
-              {/* Rest of the summary */}
               {rest && (
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -171,7 +171,7 @@ export function DocumentSummary({
           );
         })()}
 
-        {!isLoading && !summary && (
+        {!isLoading && !storedSummary && (
           <div className="text-center text-xs text-slate-500">
             Select files and click Compare
           </div>

@@ -3,8 +3,10 @@ import { Upload, FileText, Loader2, Flag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE =
-  "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
+// const API_BASE =
+//   "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
+
+  const API_BASE ="http://localhost:7071/api";
 
 /* ---------------- TYPES ---------------- */
 interface UploadedFile {
@@ -93,11 +95,41 @@ export function DocumentUpload({
     fetchProjects();
   }, []);
 
+  useEffect(() => {
+  // Load saved state
+  const savedProject = localStorage.getItem("selectedProject");
+  const savedFiles = localStorage.getItem("selectedFiles");
+  const savedFinalFile = localStorage.getItem("finalFile");
+  const savedFinalByProject = localStorage.getItem("finalFileByProject");
+
+  if (savedProject) setSelectedProject(savedProject);
+  if (savedFiles) setSelectedFiles(JSON.parse(savedFiles));
+  if (savedFinalFile) setFinalFile(savedFinalFile);
+  if (savedFinalByProject)
+    setFinalFileByProject(JSON.parse(savedFinalByProject));
+}, []);
+
+useEffect(() => {
+  // Save state to localStorage whenever it changes
+  localStorage.setItem("selectedProject", selectedProject);
+  localStorage.setItem("selectedFiles", JSON.stringify(selectedFiles));
+  localStorage.setItem("finalFile", finalFile || "");
+  localStorage.setItem(
+    "finalFileByProject",
+    JSON.stringify(finalFileByProject)
+  );
+}, [selectedProject, selectedFiles, finalFile, finalFileByProject]);
+
+useEffect(() => {
+  if (selectedProject) {
+    fetchFiles(selectedProject);
+  }
+}, [selectedProject]);
+
   /* ---------------- PROJECT HANDLING ---------------- */
   const handleProjectSelect = (value: string) => {
     setSelectedProject(value);
     setNewProject("");
-    fetchFiles(value);
     onProjectSelect?.(value);
   };
 
@@ -173,16 +205,48 @@ export function DocumentUpload({
   };
 
   /* ---------------- FINALIZE ---------------- */
-  const handleFinalize = () => {
-    if (!finalFile) return;
+  const handleFinalize = async () => {
+  if (!finalFile || !selectedProject) return;
 
+  try {
+    setLoading(true);
+
+    const res = await fetch(
+      `${API_BASE}/projects/${selectedProject}/finalize`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          finalFile,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to finalize project");
+    }
+
+    const data = await res.json();
+
+    console.log("Finalize success:", data);
+
+    // ✅ Navigate only after backend confirms
     navigate("/dailyreports", {
       state: {
         project: selectedProject,
         finalFile,
       },
     });
-  };
+  } catch (error: any) {
+    console.error(error);
+    alert(error.message || "Something went wrong while finalizing");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDeleteFile = async (fileName: string) => {
     if (!selectedProject) return;
