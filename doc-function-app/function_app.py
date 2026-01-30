@@ -2,6 +2,7 @@ from datetime import datetime
 import io
 import math
 import re
+from urllib import request
 import azure.functions as func
 import json
 import logging
@@ -13,6 +14,7 @@ from openai import AzureOpenAI
 from azure.storage.blob import BlobClient
 from openpyxl import Workbook, load_workbook
 from datetime import datetime, timedelta ,date
+import requests
 
 
 # ---------------- Load .env ----------------
@@ -979,6 +981,97 @@ Return ONLY valid JSON in this format:
 
     except Exception as e:
         logging.exception("Failed to generate progress chart")
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+    
+
+def get_salesforce_access_token():
+    """Fetch Salesforce access token using refresh_token flow"""
+    token_url = os.getenv("SF_TOKEN_URL")
+
+    payload = {
+        "grant_type": "refresh_token",
+        "client_id": os.getenv("SF_ClientID"),
+        "client_secret": os.getenv("SF_clientSecret"),
+        "refresh_token": os.getenv("SF_refresh_token"),
+    }
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    resp = requests.post(token_url, data=payload, headers=headers)
+    resp.raise_for_status()
+
+    return resp.json()
+
+
+@app.route(
+    route="projects/{projectName}/invoices",
+    methods=["GET"],
+    auth_level=func.AuthLevel.ANONYMOUS
+)
+def get_project_invoices(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info("Fetching invoices via Salesforce")
+
+    try:
+        project_name = req.route_params.get("projectName")
+        if not project_name:
+            return func.HttpResponse(
+                json.dumps({"error": "projectName required"}),
+                status_code=400,
+                mimetype="application/json"
+            )
+
+        # 1️⃣ Get Salesforce token
+        sf_auth = get_salesforce_access_token()
+        logging.info("Obtained Salesforce access token")
+        access_token = sf_auth["access_token"]
+        logging.info(access_token)
+        instance_url = sf_auth["instance_url"]
+        logging.info(instance_url)
+
+        # 2️⃣ Call Salesforce invoices API
+        # invoice_api_path = os.getenv("SF_INVOICE_API")
+        invoice_url = instance_url.rstrip("/") + "/services/apexrest/Invoice"
+        logging.info(f"Calling Salesforce Invoice API: {invoice_url}")
+
+        params = {
+            "projectName": project_name
+        }
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        resp = requests.get(invoice_url, headers=headers, params=params)
+        resp.raise_for_status()
+
+        invoices = resp.json()
+
+        return func.HttpResponse(
+            json.dumps(invoices),
+            status_code=200,
+            mimetype="application/json"
+        )
+
+    except requests.HTTPError as e:
+        logging.exception("Salesforce API error")
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Salesforce API failed",
+                "details": str(e)
+            }),
+            status_code=502,
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        logging.exception("Invoice fetch failed")
         return func.HttpResponse(
             json.dumps({"error": str(e)}),
             status_code=500,

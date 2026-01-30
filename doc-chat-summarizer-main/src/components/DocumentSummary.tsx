@@ -117,8 +117,13 @@ export function DocumentSummary({
           return (
             <div className="prose prose-slate max-w-full break-words text-sm">
               {finalRecommendation && (
-                <div className="border-l-4 border-[#F5A623] bg-amber-50 p-4 rounded my-4">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <div className="border-l-4 border-[#F5A623] bg-amber-50 p-4 rounded my-4 break-words overflow-wrap-anywhere">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                    p: (props) => <p className="mb-2 last:mb-0" {...props} />,
+                    strong: (props) => <strong className="font-semibold" {...props} />,
+                    h1: (props) => <h1 className="text-lg font-bold mb-2" {...props} />,
+                    h2: (props) => <h2 className="text-base font-semibold mb-2" {...props} />,
+                  }}>
                     {finalRecommendation}
                   </ReactMarkdown>
                 </div>

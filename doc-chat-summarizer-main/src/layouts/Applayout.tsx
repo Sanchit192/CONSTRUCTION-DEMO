@@ -55,6 +55,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout }) => {
               <Link to="/dailyreports" className="text-sm font-medium hover:text-primary transition">
                 Daily Reports
               </Link>
+              <Link
+                to="/invoice"
+                className="text-sm font-medium hover:text-primary transition">
+                Invoices
+              </Link>
             </nav>
 
             {/* User Initials Circle */}
