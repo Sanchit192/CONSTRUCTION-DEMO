@@ -89,7 +89,7 @@ export function ChatInterface({
             >
               {message.role === "assistant" && (
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-primary" />
+                  <Bot className="w-4 h-4 text-primary break-words" />
                 </div>
               )}
 
@@ -98,7 +98,7 @@ export function ChatInterface({
                   "max-w-[80%] break-words px-3 py-2 rounded-lg whitespace-pre-wrap",
                   message.role === "user"
                     ? "bg-primary text-primary-foreground rounded-br-none chat-bubble-user"
-                    : "bg-gray-100 text-gray-800 rounded-bl-none chat-bubble-assistant"
+                    : "bg-gray-100 text-gray-800 rounded-bl-none chat-bubble-assistant max-w-[70%]"
                 )}
               >
                 <p className="text-sm">{message.content}</p>
