@@ -3,10 +3,10 @@ import { Upload, FileText, Loader2, Flag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
-// const API_BASE =
-//   "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
+const API_BASE =
+  "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
 
-  const API_BASE ="http://localhost:7071/api";
+  // const API_BASE ="http://localhost:7071/api";
 
 /* ---------------- TYPES ---------------- */
 interface UploadedFile {
