@@ -1,4 +1,3 @@
-
 from datetime import datetime
 import io
 import math
@@ -325,18 +324,17 @@ def compare_reports(req: func.HttpRequest) -> func.HttpResponse:
 
         if not project or len(files) < 2:
             return func.HttpResponse(
-                json.dumps({"error": "Project and at least 2 files required"}),
+                json.dumps({"error": "At least two files are required for comparison."}),
                 status_code=400,
                 mimetype="application/json"
             )
 
-        file_1, file_2 = files[0], files[1]
+        logging.info(f"Comparing files | Project={project} | Files={files}")
 
-        logging.info(
-            f"Comparing files | Project={project} | File1={file_1} | File2={file_2}"
-        )
-        file_1_text = read_pdf_from_blob(project, file_1)
-        file_2_text = read_pdf_from_blob(project, file_2)
+        file_texts = []
+        for file in files:
+            file_text = read_pdf_from_blob(project, file)
+            file_texts.append(file_text)
 
         # --- Prompt Engineering ---
         prompt = f"""
@@ -350,21 +348,17 @@ Instructions:
 1. Start with a **Final Recommendation**: which contract is preferable and why.
 2. Immediately follow with **Reasons** (bullet points, concise).
 3. Present **Key Differences** in a **table format** using the actual file names as headers:
-   | Aspect       | {file_1} | {file_2} |
-   |-------------|-----------|-----------|
+   | Aspect       | {" | ".join(files)} |
+   |-------------|-----------|
 4. Cover the following aspects in the table: Scope, Commercials, Timelines, Risks.
 5. For each bullet point or table entry, reference the PDF section, e.g., "Scope of Work – Section 1" or "Weekly Execution Timeline – Section 3".
 6. Avoid long paragraphs—use bullet points and tables for clarity.
 7. Always reference the actual file names in all sections.
 
-Contract 1: {file_1}
-Content:
-{file_1_text}
-
-Contract 2: {file_2}
-Content:
-{file_2_text}
+Contracts:
 """
+        for i, file_text in enumerate(file_texts):
+            prompt += f"Contract {i + 1}: {files[i]}\nContent:\n{{file_text}}\n\n"
 
         completion = client.chat.completions.create(
             model=DEPLOYMENT_NAME,
@@ -984,7 +978,7 @@ RULES - CRITICAL:
 - If a PO item does NOT exist in the receipt, return a missing_item anomaly.
 - If a receipt item does NOT exist in the PO, return an extra_item anomaly.
 - For matched items, ONLY return an anomaly if quantity or unit price differs.
-- Do NOT compare or mention client/vendor names, dates, totals, project names, or any non-line-item fields.
+- Do NOT compare or mention vendor/client names, dates, totals, project names, or any non-line-item fields.
 - Be VERY STRICT: Only return an anomaly if there is a CLEAR NUMERIC MISMATCH.
 - Do NOT return anomalies for items where values match exactly.
 - Set description to ONLY the item name (e.g., Route Survey & Geotechnical Boreholes). Do not include any other text.
