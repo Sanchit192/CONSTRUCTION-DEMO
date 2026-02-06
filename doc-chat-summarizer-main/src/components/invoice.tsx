@@ -336,7 +336,7 @@ const InvoiceWorkspace = () => {
 
       return {
         poNumber: invoice.PO_Number || 'N/A',
-        projectName: invoice.Project_Name || 'Unknown Project',
+        projectName: invoice.Project_Name || (selectedProject !== 'all' ? selectedProject : 'Unknown Project'),
         purchaseOrder: {
           id: invoice.Id,
           OrderID: invoice.OrderID || invoice.orderId || invoice.Order_Id || invoice.Order_Id__c,

@@ -65,7 +65,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, isAnaly
     ? hasAnalyzed 
     : activeTab === 'receipt' 
     ? result.receipt?.hasBeenAnalyzed 
-    : result.invoice?.status === 'To be Paid' || result.invoice?.status === 'pending';
+    : result.invoice?.hasBeenAnalyzed;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
