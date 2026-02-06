@@ -12,11 +12,24 @@ export function MatchingWorkflow({ result }: MatchingWorkflowProps) {
   const hasStep2Anomaly = result.step2Anomalies.length > 0;
   const hasStep3Anomaly = result.step3Anomalies.length > 0;
 
+  const isPOPending = result.purchaseOrder.status === 'pending';
+  const isReceiptPending = !result.receipt;
+  const isInvoicePending = !result.invoice;
+  const poAnalyzedNoAnomaly = !hasStep1Anomaly && (result.overallStatus === 'partial' || result.overallStatus === 'complete');
+  const receiptAnalyzedNoAnomaly = !hasStep2Anomaly && result.receipt && (result.overallStatus === 'partial' || result.overallStatus === 'complete');
+
   const steps = [
     {
       label: 'Purchase Order',
       icon: FileText,
-      status: 'complete' as const,
+      status:
+        result.purchaseOrder.status === 'anomaly' || hasStep1Anomaly
+          ? 'anomaly'
+          : poAnalyzedNoAnomaly
+            ? 'complete'
+            : result.purchaseOrder.status === 'pending'
+              ? 'pending'
+              : 'complete' as const,
       value: result.purchaseOrder.poNumber,
     },
     {
@@ -24,11 +37,19 @@ export function MatchingWorkflow({ result }: MatchingWorkflowProps) {
       isStep: true,
       hasAnomaly: hasStep1Anomaly,
       anomalyCount: result.step1Anomalies.length,
+      status: isPOPending ? 'pending' : (hasStep1Anomaly ? 'anomaly' : 'complete'),
     },
     {
       label: 'Receipt',
       icon: Package,
-      status: result.receipt ? (hasStep1Anomaly ? 'anomaly' : 'complete') : 'pending',
+      status:
+        hasStep2Anomaly
+          ? 'anomaly'
+          : result.receipt?.hasBeenAnalyzed && !hasStep2Anomaly
+            ? 'complete'
+            : result.receipt?.status === 'matched'
+            ? 'complete'
+            : 'pending',
       value: result.receipt?.receiptNumber || 'Awaiting',
     },
     {
@@ -36,11 +57,18 @@ export function MatchingWorkflow({ result }: MatchingWorkflowProps) {
       isStep: true,
       hasAnomaly: hasStep2Anomaly,
       anomalyCount: result.step2Anomalies.length,
+      status: isReceiptPending ? 'pending' : (hasStep2Anomaly ? 'anomaly' : result.receipt?.hasBeenAnalyzed ? 'complete' : 'pending'),
     },
     {
       label: 'Invoice',
       icon: Receipt,
-      status: result.invoice ? (hasStep2Anomaly || hasStep3Anomaly ? 'anomaly' : 'complete') : 'pending',
+      status: result.invoice 
+        ? (hasStep1Anomaly || hasStep2Anomaly || hasStep3Anomaly
+          ? 'anomaly'
+          : result.invoice.status === 'pending' 
+          ? 'pending' 
+          : 'complete')
+        : 'pending',
       value: result.invoice?.invoiceNumber || 'Awaiting',
     },
   ];
@@ -54,18 +82,22 @@ export function MatchingWorkflow({ result }: MatchingWorkflowProps) {
               <div
                 className={cn(
                   'w-8 h-8 rounded-full flex items-center justify-center',
-                  step.hasAnomaly
+                  step.status === 'pending'
+                    ? 'bg-muted text-muted-foreground'
+                    : step.hasAnomaly
                     ? 'bg-destructive text-destructive-foreground'
                     : 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]'
                 )}
               >
-                {step.hasAnomaly ? (
+                {step.status === 'pending' ? (
+                  <ArrowRight className="h-4 w-4" />
+                ) : step.hasAnomaly ? (
                   <AlertTriangle className="h-4 w-4" />
                 ) : (
                   <CheckCircle2 className="h-4 w-4" />
                 )}
               </div>
-              {step.hasAnomaly && (
+              {step.hasAnomaly && step.status !== 'pending' && (
                 <span className="text-xs text-destructive mt-1 font-medium">
                   {step.anomalyCount} issue{step.anomalyCount > 1 ? 's' : ''}
                 </span>

@@ -3,10 +3,10 @@ import { Upload, FileText, Loader2, Flag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE =
-  "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
+// const API_BASE =
+//   "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
 
-  // const API_BASE ="http://localhost:7071/api";
+  const API_BASE ="http://localhost:7071/api";
 
 /* ---------------- TYPES ---------------- */
 interface UploadedFile {
@@ -77,7 +77,9 @@ export function DocumentUpload({
     const res = await fetch(`${API_BASE}/projects/${project}/files`);
     const data = await res.json();
 
-    setFiles(data.map((f: string) => ({ name: f })));
+    const fetchedFiles = data.map((f: string) => ({ name: f }));
+    setFiles(fetchedFiles);
+    localStorage.setItem("filesList", JSON.stringify(fetchedFiles));
 
     const finalForProject = finalFileByProject[project] || null;
     setFinalFile(finalForProject);
@@ -101,12 +103,14 @@ export function DocumentUpload({
   const savedFiles = localStorage.getItem("selectedFiles");
   const savedFinalFile = localStorage.getItem("finalFile");
   const savedFinalByProject = localStorage.getItem("finalFileByProject");
+  const savedFilesList = localStorage.getItem("filesList");
 
   if (savedProject) setSelectedProject(savedProject);
   if (savedFiles) setSelectedFiles(JSON.parse(savedFiles));
   if (savedFinalFile) setFinalFile(savedFinalFile);
   if (savedFinalByProject)
     setFinalFileByProject(JSON.parse(savedFinalByProject));
+  if (savedFilesList) setFiles(JSON.parse(savedFilesList));
 }, []);
 
 useEffect(() => {
@@ -118,10 +122,11 @@ useEffect(() => {
     "finalFileByProject",
     JSON.stringify(finalFileByProject)
   );
-}, [selectedProject, selectedFiles, finalFile, finalFileByProject]);
+  localStorage.setItem("filesList", JSON.stringify(files));
+}, [selectedProject, selectedFiles, finalFile, finalFileByProject, files]);
 
 useEffect(() => {
-  if (selectedProject) {
+  if (selectedProject && files.length === 0) {
     fetchFiles(selectedProject);
   }
 }, [selectedProject]);
@@ -277,7 +282,7 @@ useEffect(() => {
 
   /* ---------------- UI ---------------- */
   return (
-    <div className="w-full max-w-3xl space-y-6 p-6 bg-white rounded-lg shadow">
+    <div className="w-full max-w-3xl space-y-6 p-6 bg-white rounded-lg ">
       {/* CREATE PROJECT */}
       <div className="flex gap-2">
         <input

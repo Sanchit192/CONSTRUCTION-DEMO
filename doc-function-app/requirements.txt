@@ -16,3 +16,4 @@ sendgrid
 azure-storage-blob
 openai
 pdfplumber
+snowflake-connector-python

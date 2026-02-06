@@ -78,7 +78,7 @@ export function DocumentSummary({
   };
 
   return (
-    <Card className="h-[450px] w-full flex flex-col shadow-md border border-slate-200 z-0">
+    <Card className="flex flex-col h-full">
       <CardHeader className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3">
         <div className="flex justify-between items-center w-full">
           <div className="flex items-center gap-2">
@@ -117,13 +117,8 @@ export function DocumentSummary({
           return (
             <div className="prose prose-slate max-w-full break-words text-sm">
               {finalRecommendation && (
-                <div className="border-l-4 border-[#F5A623] bg-amber-50 p-4 rounded my-4 break-words overflow-wrap-anywhere">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                    p: (props) => <p className="mb-2 last:mb-0" {...props} />,
-                    strong: (props) => <strong className="font-semibold" {...props} />,
-                    h1: (props) => <h1 className="text-lg font-bold mb-2" {...props} />,
-                    h2: (props) => <h2 className="text-base font-semibold mb-2" {...props} />,
-                  }}>
+                <div className="border-l-4 border-[#F5A623] bg-amber-50 p-4 rounded my-4">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {finalRecommendation}
                   </ReactMarkdown>
                 </div>

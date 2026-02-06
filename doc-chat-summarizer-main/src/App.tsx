@@ -10,6 +10,7 @@ import DailyReports from "./components/dailyreports";
 import AppLayout from "./layouts/Applayout";
 import SignUp from "./pages/signup";
 import InvoiceWorkspace from "./components/invoice";
+import { ReceiptManagement } from "./components/ReceiptManagement";
 
 const queryClient = new QueryClient();
 
@@ -65,7 +66,7 @@ function App() {
               <Route index element={<Index />} />
               <Route path="dailyreports" element={<DailyReports />} />
               <Route path="invoice" element={<InvoiceWorkspace />} />
-
+              <Route path="receipt" element={<ReceiptManagement />} />
             </Route>
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

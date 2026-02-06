@@ -1,6 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+const API_BASE = 
+  "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
+
+// const API_BASE = "http://localhost:7071/api";
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -23,9 +27,34 @@ export function useDocumentChat() {
   const { toast } = useToast();
 
   /** ------------------------ */
-  /** Selected file & project for chat */
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  /** Selected files & project for chat */
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
+
+  /* ---------------------------------- */
+  /* Persistence */
+  /* ---------------------------------- */
+  useEffect(() => {
+    const saved = localStorage.getItem('documentChat_state');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.selectedFiles) setSelectedFiles(parsed.selectedFiles);
+        if (parsed.selectedProject) setSelectedProject(parsed.selectedProject);
+      } catch (e) {
+        console.error('Failed to load saved state', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedFiles.length > 0 || selectedProject) {
+      localStorage.setItem('documentChat_state', JSON.stringify({
+        selectedFiles,
+        selectedProject
+      }));
+    }
+  }, [selectedFiles, selectedProject]);
 
   /* ---------------------------------- */
   /* Upload only (NO API call here) */
@@ -54,7 +83,7 @@ export function useDocumentChat() {
 
       try {
         const res = await fetch(
-          "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api/contracts/compare",
+          `${API_BASE}/contracts/compare`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -88,25 +117,25 @@ export function useDocumentChat() {
   const handleFilesSelect = useCallback(
     (files: string[], project: string) => {
       setSelectedProject(project);
-      setSelectedFile(files[0] || null); // pick first selected file for chat
+      setSelectedFiles(files); // keep all selected files for chat
     },
     []
   );
 
   const handleFinalFileSelect = useCallback(
-  (fileName: string, project: string) => {
-    setSelectedProject(project);
-    setSelectedFile(fileName); // ✅ update selected file
-  },
-  []
-);
+    (fileName: string, project: string) => {
+      setSelectedProject(project);
+      setSelectedFiles([fileName]); // ensure final selection is a single file
+    },
+    []
+  );
 
   /* ---------------------------------- */
   /* Chat logic */
   /* ---------------------------------- */
   const sendMessage = useCallback(
     async (userMessage: string) => {
-      if (!selectedFile || !selectedProject) {
+      if (selectedFiles.length === 0 || !selectedProject) {
         toast({
           title: "No file selected",
           description: "Please select a document to chat with.",
@@ -125,12 +154,13 @@ export function useDocumentChat() {
       setIsChatLoading(true);
 
       try {
-        const res = await fetch("https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api/document-chat", {
+        const res = await fetch(`${API_BASE}/document-chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             projectName: selectedProject,
-            fileName: selectedFile,
+            fileName: selectedFiles[0],
+            fileNames: selectedFiles,
             question: userMessage,
           }),
         });
@@ -155,7 +185,7 @@ export function useDocumentChat() {
         setIsChatLoading(false);
       }
     },
-    [selectedFile, selectedProject, toast]
+    [selectedFiles, selectedProject, toast]
   );
 
   return {
@@ -165,6 +195,8 @@ export function useDocumentChat() {
     isProcessing,
     isSummarizing,
     isChatLoading,
+    selectedFiles,
+    selectedProject,
     addDocument,
     compareDocuments,
     removeDocument: (id: string) =>
@@ -173,8 +205,9 @@ export function useDocumentChat() {
       setDocuments([]);
       setSummary(null);
       setMessages([]);
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setSelectedProject(null);
+      localStorage.removeItem('documentChat_state');
     },
     sendMessage,
     handleFilesSelect,    // 🔹 pass to DocumentUpload

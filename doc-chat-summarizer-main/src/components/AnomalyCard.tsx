@@ -30,13 +30,27 @@ const severityConfig = {
 
 const stepLabels = {
   po_receipt: 'Step 1: PO ↔ SOW',
-  receipt_invoice: 'Step 2: PO ↔ Receipt',
-  po_invoice: 'Step 3: Reciept ↔ Invoice',
+  receipt_invoice: 'Step 2: Receipt ↔ PO',
+  po_invoice: 'Step 3: Invoice ↔ Receipt',
 };
 
 export function AnomalyCard({ anomaly }: AnomalyCardProps) {
   const config = severityConfig[anomaly.severity];
   const Icon = config.icon;
+
+  // Check if the field is related to pricing/money
+  const isPriceField = ['unitPrice', 'price', 'total', 'amount', 'unitprice', 'totalprice'].includes(
+    anomaly.field.toLowerCase().replace(/[_\s]/g, '')
+  );
+
+  // Format value with $ for price fields
+  const formatValue = (value: any) => {
+    if (typeof value === 'number') {
+      const formatted = value.toLocaleString();
+      return isPriceField ? `$${formatted}` : formatted;
+    }
+    return value;
+  };
 
   return (
     <Card className={cn('border', config.bgClass)}>
@@ -60,17 +74,13 @@ export function AnomalyCard({ anomaly }: AnomalyCardProps) {
               <div>
                 <span className="text-muted-foreground">Expected: </span>
                 <span className="font-mono font-medium text-[hsl(var(--success))]">
-                  {typeof anomaly.expectedValue === 'number' 
-                    ? anomaly.expectedValue.toLocaleString() 
-                    : anomaly.expectedValue}
+                  {formatValue(anomaly.expectedValue)}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Actual: </span>
                 <span className="font-mono font-medium text-destructive">
-                  {typeof anomaly.actualValue === 'number' 
-                    ? anomaly.actualValue.toLocaleString() 
-                    : anomaly.actualValue}
+                  {formatValue(anomaly.actualValue)}
                 </span>
               </div>
             </div>

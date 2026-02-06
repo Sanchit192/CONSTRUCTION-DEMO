@@ -28,6 +28,7 @@ export interface Receipt {
   totalAmount: number;
   status: 'pending' | 'matched' | 'anomaly';
   anomalies?: Anomaly[];
+  hasBeenAnalyzed?: boolean;
 }
 
 export interface Invoice {

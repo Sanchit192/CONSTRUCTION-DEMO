@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { DocumentSummary } from "@/components/DocumentSummary";
 import { ChatDialog } from "@/components/ChatbotDailog";
@@ -18,51 +18,52 @@ const Index = () => {
     compareDocuments,
     handleFilesSelect,
     handleFinalFileSelect,
+    selectedFiles,
+    selectedProject,
   } = useDocumentChat();
-
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>("");
 
   const hasSelectedFiles = selectedFiles.length > 0;
   const fileNames = selectedFiles.join(", ");
 
   return (
     <>
-      <div className="grid lg:grid-cols-2 gap-6">
-        <DocumentUpload
-          documents={documents}
-          onDocumentAdd={addDocument}
-          onDocumentRemove={removeDocument}
-          onClearAll={clearAllDocuments}
-          onFilesSelect={(files) => {
-            setSelectedFiles(files);
-            if (selectedProject && files.length > 0) {
-              handleFilesSelect(files, selectedProject);
-            }
-          }}
-          onFinalFileSelect={(fileName) => {
-            setSelectedFiles([fileName]);
-            if (selectedProject) {
-              handleFinalFileSelect(fileName, selectedProject);
-            }
-          }}
-          onCompare={(project, files) => compareDocuments(project, files)}
-          onProjectSelect={(project) => setSelectedProject(project)}
-        />
+      <div className="flex space-x-4 mx-auto mt-2 h-[710px]">
+        <div className="flex-1 bg-white rounded-lg border overflow-y-auto shadow">
+          <DocumentUpload
+            documents={documents}
+            onDocumentAdd={addDocument}
+            onDocumentRemove={removeDocument}
+            onClearAll={clearAllDocuments}
+            onFilesSelect={(files) => {
+              if (selectedProject && files.length > 0) {
+                handleFilesSelect(files, selectedProject);
+              }
+            }}
+            onFinalFileSelect={(fileName) => {
+              if (selectedProject) {
+                handleFinalFileSelect(fileName, selectedProject);
+              }
+            }}
+            onCompare={(project, files) => compareDocuments(project, files)}
+            onProjectSelect={(project) => handleFilesSelect(selectedFiles, project)}
+          />
+        </div>
 
-        <DocumentSummary
-          fileName={hasSelectedFiles ? fileNames : null}
-          summary={summary}
-          isLoading={isSummarizing}
-        />
+        <div className="flex-1 bg-white rounded-lg border overflow-y-auto shadow">
+          <DocumentSummary
+            fileName={hasSelectedFiles ? fileNames : null}
+            summary={summary}
+            isLoading={isSummarizing}
+          />
+        </div>
       </div>
 
       <ChatDialog
-  messages={messages}
-  onSendMessage={sendMessage}
-  isLoading={isChatLoading}
-  disabled={selectedFiles.length === 0}
-/>
+        messages={messages}
+        onSendMessage={sendMessage}
+        isLoading={isChatLoading}
+        disabled={selectedFiles.length === 0}
+      />
     </>
   );
 };
