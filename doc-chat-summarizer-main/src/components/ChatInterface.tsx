@@ -95,10 +95,10 @@ export function ChatInterface({
 
               <div
                 className={cn(
-                  "max-w-[80%] break-words px-3 py-2 rounded-lg whitespace-pre-wrap",
+                  "max-w-[60%] break-words px-3 py-2 rounded-lg whitespace-pre-wrap",
                   message.role === "user"
                     ? "bg-primary text-primary-foreground rounded-br-none chat-bubble-user"
-                    : "bg-gray-100 text-gray-800 rounded-bl-none chat-bubble-assistant max-w-[70%]"
+                    : "bg-gray-100 text-gray-800 rounded-bl-none chat-bubble-assistant max-w-[60%]"
                 )}
               >
                 <p className="text-sm">{message.content}</p>

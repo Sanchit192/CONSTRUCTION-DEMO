@@ -620,6 +620,7 @@ const InvoiceWorkspace = () => {
                   ...prev.receipt,
                   status: receiptAnomalies.length > 0 ? 'anomaly' : 'matched',
                   anomalies: receiptAnomalies,
+                  hasBeenAnalyzed: true,
                 }
               : prev.receipt,
           };

@@ -620,6 +620,7 @@ RESPONSE REQUIREMENTS:
 - If asked for recommendations (e.g., which vendor to choose), provide reasoning strictly based on the document's information.
 - When answering from multiple documents, cite which document each piece of information comes from.
 - Keep your answer concise but comprehensive.
+- Provide your answer only in paragraph form (no tables).
 - If the answer is not in the {document_label}, respond with:
   "The {document_label} do not contain information to answer this question."
 """
