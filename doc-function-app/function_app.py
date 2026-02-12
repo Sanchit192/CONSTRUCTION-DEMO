@@ -793,31 +793,42 @@ def get_latest_final_report_payload(project: str) -> dict:
     except ValueError:
         raise ValueError("final-report.xlsx missing required columns")
 
-    # Find latest row where type == 'final'
+    # Find latest row where type == 'final' AND fileName contains 'Anomaly_Version'
     latest_row = None
+    payload = None
+    
     for row in reversed(rows[1:]):
         if str(row[type_idx]).lower() == "final":
-            latest_row = row
-            break
+            # Parse the payload to check fileName
+            payload_raw = row[data_idx]
+            try:
+                if isinstance(payload_raw, str):
+                    temp_payload = json.loads(payload_raw)
+                elif isinstance(payload_raw, dict):
+                    temp_payload = payload_raw
+                else:
+                    temp_payload = json.loads(json.dumps(payload_raw, default=str))
+                
+                file_name = temp_payload.get("fileName", "")
+                
+                # Only accept rows with Anomaly_Version in fileName
+                if "Anomaly_Version" in file_name:
+                    latest_row = row
+                    payload = temp_payload
+                    logging.info(f"Found final report with Anomaly_Version: {file_name}")
+                    break
+                else:
+                    logging.info(f"Skipping final entry without Anomaly_Version: {file_name}")
+            except Exception as e:
+                logging.warning(f"Failed to parse payload for row, skipping: {str(e)}")
+                continue
 
-    if not latest_row:
-        raise ValueError("No final entry found in final-report.xlsx")
+    if not latest_row or not payload:
+        raise ValueError("No final entry with Anomaly_Version found in final-report.xlsx")
 
-    payload_raw = latest_row[data_idx]
-    if isinstance(payload_raw, str):
-        payload = json.loads(payload_raw)
-        logging.info(f"Final report payload: {payload}")
-    elif isinstance(payload_raw, dict):
-        payload = payload_raw
-    else:
-        payload = json.loads(json.dumps(payload_raw, default=str))
-
-    # Check if this is the anomaly version
     file_name = payload.get("fileName", "")
-    if "Anomaly_Version" not in file_name:
-        logging.warning(f"WARNING: Final report fileName does not contain 'Anomaly_Version': {file_name}")
-    
     logging.info(f"Final Report File Name: {file_name}")
+    logging.info(f"Final Report Date: {latest_row[date_idx]}")
 
     return {
         "payload": payload,

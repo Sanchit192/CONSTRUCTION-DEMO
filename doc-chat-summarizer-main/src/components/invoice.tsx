@@ -175,13 +175,24 @@ const InvoiceWorkspace = () => {
             return;
           }
 
-          const responses = await Promise.all(
-            projects.map((project) =>
-              fetch(`${API_BASE}/projects/${encodeURIComponent(project.name)}/invoices`)
-            )
+          const allData = await Promise.all(
+            projects.map(async (project) => {
+              const res = await fetch(
+                `${API_BASE}/projects/${encodeURIComponent(project.name)}/invoices`
+              );
+              const data = await res.json();
+
+              if (!Array.isArray(data)) {
+                return [];
+              }
+
+              return data.map((invoice: any) => ({
+                ...invoice,
+                Project_Name: invoice.Project_Name || project.name,
+              }));
+            })
           );
 
-          const allData = await Promise.all(responses.map((res) => res.json()));
           const flattened = allData.flat();
           console.log('Fetched invoices for all projects:', flattened);
           setInvoices(flattened);
