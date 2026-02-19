@@ -328,7 +328,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="receipt" disabled={!result.receipt}>
+              <TabsTrigger value="receipt" disabled={!result.receipt && result.step1Anomalies.length > 0}>
                 Receipt
                 {result.step2Anomalies.length > 0 && (
                   <span className="ml-2 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded">
@@ -420,7 +420,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
             </TabsContent>
 
             <TabsContent value="receipt" className="mt-4">
-              {result.receipt && (
+              {result.receipt ? (
                 <>
                   <Card>
                     <CardHeader className="pb-3">
@@ -470,32 +470,59 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                       </Table>
                     </CardContent>
                   </Card>
+                  <div className="flex justify-between mt-4">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => {
+                        const orderId = result.purchaseOrder.OrderID || result.poNumber;
+                        window.open(`/receipt?orderId=${encodeURIComponent(orderId)}`, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => onAnalyze(result, 'receipt')}
+                      disabled={isAnalyzing}
+                    >
+                      <Zap className="h-4 w-4" />
+                      {isAnalyzing ? 'Analyzing...' : 'Analyze Receipt'}
+                    </Button>
+                  </div>
                 </>
-              )}
-              <div className="flex justify-between mt-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => {
-                    const orderId = result.purchaseOrder.OrderID || result.poNumber;
-                    window.open(`/receipt?orderId=${encodeURIComponent(orderId)}`, '_blank', 'noopener,noreferrer');
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => onAnalyze(result, 'receipt')}
-                  disabled={isAnalyzing}
-                >
-                  <Zap className="h-4 w-4" />
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze Receipt'}
-                </Button>
-              </div>
+              ) : result.step1Anomalies.length === 0 ? (
+                <>
+                  <Card className="border-muted">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base text-muted-foreground">
+                        No receipt found
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        No receipt has been created for this OrderID yet.
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <div className="flex justify-end mt-4">
+                    <Button
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => {
+                        const orderId = result.purchaseOrder.OrderID || result.poNumber;
+                        window.open(`/receipt?orderId=${encodeURIComponent(orderId)}`, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      Create Receipt
+                    </Button>
+                  </div>
+                </>
+              ) : null}
             </TabsContent>
 
             <TabsContent value="invoice" className="mt-4">
