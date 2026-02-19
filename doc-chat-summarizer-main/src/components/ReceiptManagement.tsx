@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Receipt, ReceiptStatus, LineItem } from '@/types/receipt';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -206,6 +207,7 @@ function LineItemsTable({ items, onChange, readOnly = false }: LineItemsTablePro
 
 // Main Receipt Management Component
 export function ReceiptManagement() {
+  const [searchParams] = useSearchParams();
   const [searchOrderId, setSearchOrderId] = useState('');
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [isNewReceipt, setIsNewReceipt] = useState(false);
@@ -225,6 +227,16 @@ export function ReceiptManagement() {
     }
   }, []);
 
+  // Auto-search if orderId is provided in URL query params
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId) {
+      setSearchOrderId(orderId);
+      // Auto-trigger search for the provided orderId
+      performSearch(orderId);
+    }
+  }, [searchParams]);
+
   // Generate numeric receipt ID with RCPT- prefix
   const generateNumericReceiptId = (): string => {
     const timestamp = Date.now();
@@ -233,8 +245,8 @@ export function ReceiptManagement() {
     return `RCPT-${numericId}`;
   };
 
-  const handleSearch = async () => {
-    const trimmedOrderId = searchOrderId.trim();
+  const performSearch = async (orderId?: string) => {
+    const trimmedOrderId = (orderId || searchOrderId).trim();
     if (!trimmedOrderId) {
       return;
     }
@@ -266,7 +278,7 @@ export function ReceiptManagement() {
         const mappedReceipt: Receipt = {
           receiptId: apiReceipt.receiptId,
           orderId: apiReceipt.orderId,
-          status: apiReceipt.status as ReceiptStatus,
+          status: 'draft',
           createdBy: apiReceipt.createdBy,
           lineItems: mappedLineItems,
           createdAt: new Date(apiReceipt.createdAt),
@@ -294,6 +306,10 @@ export function ReceiptManagement() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSearch = async () => {
+    performSearch();
   };
 
   const handleStatusChange = (status: ReceiptStatus) => {
@@ -372,7 +388,7 @@ export function ReceiptManagement() {
             </Label>
             <Input
               id="orderId"
-              placeholder="Enter Order ID (e.g., ORD-001)"
+              placeholder="Enter Order ID (e.g., ORD-0001)"
               value={searchOrderId}
               onChange={(e) => setSearchOrderId(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -384,9 +400,7 @@ export function ReceiptManagement() {
             {isLoading ? 'Searching...' : 'Search'}
           </Button>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Try searching for ORD-001 or ORD-002 to see existing receipts
-        </p>
+        
       </div>
 
       {/* Receipt Details */}

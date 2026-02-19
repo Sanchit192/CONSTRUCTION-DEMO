@@ -9,6 +9,7 @@ export interface LineItem {
 export interface PurchaseOrder {
   id: string;
   poNumber: string;
+  OrderID?: string;
   vendor: string;
   date: string;
   expectedDelivery: string;
@@ -42,6 +43,7 @@ export interface Invoice {
   totalAmount: number;
   status: 'pending' | 'matched' | 'anomaly';
   anomalies?: Anomaly[];
+  hasBeenAnalyzed?: boolean;
 }
 
 export interface Anomaly {

@@ -2,12 +2,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MatchingResult } from '@/types/invoice';
+import { MatchingResult, PurchaseOrder, Invoice } from '@/types/invoice';
 import { MatchingWorkflow } from './MatchingWorkflow';
 import { AnomalyCard } from './AnomalyCard';
 import { StatusBadge } from './StatusBadge';
-import { Zap } from 'lucide-react';
+import { Pencil, Zap } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import {
   Table,
@@ -18,17 +20,28 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+// const API_BASE = 'http://localhost:7071/api';
+
+const API_BASE =
+  "https://construction-demo-g9gggbgsd0bmdccx.eastus-01.azurewebsites.net/api";
+
 interface MatchingDetailsProps {
   result: MatchingResult | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
     onAnalyze: (result: MatchingResult, type: 'po' | 'receipt' | 'invoice') => void;
+  onResultUpdate?: (result: MatchingResult) => void;
   isAnalyzing?: boolean;
   hasAnalyzed?: boolean;
 }
 
-export function MatchingDetails({ result, open, onOpenChange, onAnalyze, isAnalyzing = false, hasAnalyzed = false }: MatchingDetailsProps) {
+export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResultUpdate, isAnalyzing = false, hasAnalyzed = false }: MatchingDetailsProps) {
   const [activeTab, setActiveTab] = useState<'po' | 'receipt' | 'invoice'>('po');
+  const [editingPO, setEditingPO] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState(false);
+  const [editPOData, setEditPOData] = useState<PurchaseOrder | null>(null);
+  const [editInvoiceData, setEditInvoiceData] = useState<Invoice | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Reset tab to 'po' when dialog opens
   useEffect(() => {
@@ -36,6 +49,158 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, isAnaly
       setActiveTab('po');
     }
   }, [open]);
+
+  const openPOEdit = () => {
+    if (result?.purchaseOrder) {
+      setEditPOData(JSON.parse(JSON.stringify(result.purchaseOrder)));
+      setEditingPO(true);
+    }
+  };
+
+  const openInvoiceEdit = () => {
+    if (result?.invoice) {
+      setEditInvoiceData(JSON.parse(JSON.stringify(result.invoice)));
+      setEditingInvoice(true);
+    }
+  };
+
+  const closePOEdit = () => {
+    setEditingPO(false);
+    setEditPOData(null);
+  };
+
+  const closeInvoiceEdit = () => {
+    setEditingInvoice(false);
+    setEditInvoiceData(null);
+  };
+
+  const savePOEdit = async () => {
+    if (!editPOData || !result) return;
+
+    const lineItemUpdates = editPOData.lineItems
+      .filter((item) => item.id)
+      .map(async (item) => {
+        const response = await fetch(`${API_BASE}/po-line-item`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          }),
+        });
+
+        const text = await response.text();
+        return {
+          id: item.id,
+          ok: response.ok,
+          status: response.status,
+          body: text,
+        };
+      });
+
+    if (lineItemUpdates.length === 0) {
+      alert('No PO line items to update.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const responses = await Promise.all(lineItemUpdates);
+      const failed = responses.find((resp) => !resp.ok);
+      if (failed) {
+        let details = failed.body;
+        try {
+          const parsed = JSON.parse(failed.body);
+          details = parsed.error || parsed.details || failed.body;
+        } catch {
+          // use raw text
+        }
+        throw new Error(`Failed to save PO line items (${failed.status}): ${details}`);
+      }
+
+      const updatedPO: PurchaseOrder = {
+        ...editPOData,
+        totalAmount: editPOData.lineItems.reduce((sum, item) => sum + item.total, 0),
+      };
+      onResultUpdate?.({
+        ...result,
+        purchaseOrder: updatedPO,
+      });
+
+      alert('PO updated successfully');
+      closePOEdit();
+    } catch (error) {
+      console.error('Error saving PO:', error);
+      alert(`Failed to save PO: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const saveInvoiceEdit = async () => {
+    if (!editInvoiceData || !result) return;
+
+    const lineItemUpdates = editInvoiceData.lineItems
+      .filter((item) => item.id)
+      .map(async (item) => {
+        const response = await fetch(`${API_BASE}/invoice-line-item`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          }),
+        });
+
+        const text = await response.text();
+        return {
+          id: item.id,
+          ok: response.ok,
+          status: response.status,
+          body: text,
+        };
+      });
+
+    if (lineItemUpdates.length === 0) {
+      alert('No invoice line items to update.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const responses = await Promise.all(lineItemUpdates);
+      const failed = responses.find((resp) => !resp.ok);
+      if (failed) {
+        let details = failed.body;
+        try {
+          const parsed = JSON.parse(failed.body);
+          details = parsed.error || parsed.details || failed.body;
+        } catch {
+          // use raw text
+        }
+        throw new Error(`Failed to save invoice line items (${failed.status}): ${details}`);
+      }
+
+      const updatedInvoice: Invoice = {
+        ...editInvoiceData,
+        totalAmount: editInvoiceData.lineItems.reduce((sum, item) => sum + item.total, 0),
+      };
+      onResultUpdate?.({
+        ...result,
+        invoice: updatedInvoice,
+      });
+
+      alert('Invoice updated successfully');
+      closeInvoiceEdit();
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      alert(`Failed to save invoice: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
   
   if (!result) return null;
 
@@ -231,16 +396,25 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, isAnaly
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-between mt-4">
                 <Button
                   size="sm"
                   variant="outline"
                   className="gap-2"
-                    onClick={() => onAnalyze(result, 'po')}
+                  onClick={openPOEdit}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => onAnalyze(result, 'po')}
                   disabled={isAnalyzing}
                 >
                   <Zap className="h-4 w-4" />
-                    {isAnalyzing ? 'Analyzing...' : 'Analyze Purchase Order'}
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Purchase Order'}
                 </Button>
               </div>
             </TabsContent>
@@ -298,16 +472,28 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, isAnaly
                   </Card>
                 </>
               )}
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-between mt-4">
                 <Button
                   size="sm"
                   variant="outline"
                   className="gap-2"
-                    onClick={() => onAnalyze(result, 'receipt')}
+                  onClick={() => {
+                    const orderId = result.purchaseOrder.OrderID || result.poNumber;
+                    window.open(`/receipt?orderId=${encodeURIComponent(orderId)}`, '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => onAnalyze(result, 'receipt')}
                   disabled={isAnalyzing}
                 >
                   <Zap className="h-4 w-4" />
-                    {isAnalyzing ? 'Analyzing...' : 'Analyze Receipt'}
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Receipt'}
                 </Button>
               </div>
             </TabsContent>
@@ -365,22 +551,310 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, isAnaly
                   </Card>
                 </>
               )}
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-between mt-4">
                 <Button
                   size="sm"
                   variant="outline"
                   className="gap-2"
-                    onClick={() => onAnalyze(result, 'invoice')}
+                  onClick={openInvoiceEdit}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => onAnalyze(result, 'invoice')}
                   disabled={isAnalyzing}
                 >
                   <Zap className="h-4 w-4" />
-                    {isAnalyzing ? 'Analyzing...' : 'Analyze Invoice'}
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Invoice'}
                 </Button>
               </div>
             </TabsContent>
           </Tabs>
         </div>
-      </DialogContent>
+
+        {/* PO Edit Modal */}
+        {editingPO && editPOData && (
+          <Dialog open={editingPO} onOpenChange={setEditingPO}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Purchase Order</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="po-number">PO Number</Label>
+                    <Input
+                      id="po-number"
+                      value={editPOData.poNumber}
+                      onChange={(e) =>
+                        setEditPOData({ ...editPOData, poNumber: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="po-vendor">Vendor</Label>
+                    <Input
+                      id="po-vendor"
+                      value={editPOData.vendor}
+                      onChange={(e) =>
+                        setEditPOData({ ...editPOData, vendor: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="po-date">Date</Label>
+                    <Input
+                      id="po-date"
+                      type="date"
+                      value={editPOData.date}
+                      onChange={(e) =>
+                        setEditPOData({ ...editPOData, date: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="po-delivery">Expected Delivery</Label>
+                    <Input
+                      id="po-delivery"
+                      type="date"
+                      value={editPOData.expectedDelivery}
+                      onChange={(e) =>
+                        setEditPOData({ ...editPOData, expectedDelivery: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <Label className="text-base font-semibold mb-3 block">Line Items</Label>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {editPOData.lineItems.map((item, idx) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <Input
+                              value={item.description}
+                              onChange={(e) => {
+                                const newItems = [...editPOData.lineItems];
+                                newItems[idx].description = e.target.value;
+                                setEditPOData({ ...editPOData, lineItems: newItems });
+                              }}
+                              className="w-full"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const newItems = [...editPOData.lineItems];
+                                newItems[idx].quantity = parseInt(e.target.value) || 0;
+                                newItems[idx].total = newItems[idx].quantity * newItems[idx].unitPrice;
+                                setEditPOData({ ...editPOData, lineItems: newItems });
+                              }}
+                              className="w-24 text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={(e) => {
+                                const newItems = [...editPOData.lineItems];
+                                newItems[idx].unitPrice = parseInt(e.target.value) || 0;
+                                newItems[idx].total = newItems[idx].quantity * newItems[idx].unitPrice;
+                                setEditPOData({ ...editPOData, lineItems: newItems });
+                              }}
+                              className="w-24 text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            ${item.total.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="font-bold border-t-2">
+                        <TableCell colSpan={3}>Total</TableCell>
+                        <TableCell className="text-right font-mono">
+                          ${editPOData.lineItems
+                            .reduce((sum, item) => sum + item.total, 0)
+                            .toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6">
+                  <Button variant="outline" onClick={closePOEdit}>
+                    Cancel
+                  </Button>
+                  <Button onClick={savePOEdit} disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Invoice Edit Modal */}
+        {editingInvoice && editInvoiceData && (
+          <Dialog open={editingInvoice} onOpenChange={setEditingInvoice}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Invoice</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="inv-number">Invoice Number</Label>
+                    <Input
+                      id="inv-number"
+                      value={editInvoiceData.invoiceNumber}
+                      onChange={(e) =>
+                        setEditInvoiceData({ ...editInvoiceData, invoiceNumber: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="inv-po">PO Number</Label>
+                    <Input
+                      id="inv-po"
+                      value={editInvoiceData.poNumber}
+                      onChange={(e) =>
+                        setEditInvoiceData({ ...editInvoiceData, poNumber: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="inv-vendor">Vendor</Label>
+                    <Input
+                      id="inv-vendor"
+                      value={editInvoiceData.vendor}
+                      onChange={(e) =>
+                        setEditInvoiceData({ ...editInvoiceData, vendor: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="inv-date">Invoice Date</Label>
+                    <Input
+                      id="inv-date"
+                      type="date"
+                      value={editInvoiceData.invoiceDate}
+                      onChange={(e) =>
+                        setEditInvoiceData({ ...editInvoiceData, invoiceDate: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="inv-due">Due Date</Label>
+                    <Input
+                      id="inv-due"
+                      type="date"
+                      value={editInvoiceData.dueDate}
+                      onChange={(e) =>
+                        setEditInvoiceData({ ...editInvoiceData, dueDate: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <Label className="text-base font-semibold mb-3 block">Line Items</Label>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {editInvoiceData.lineItems.map((item, idx) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <Input
+                              value={item.description}
+                              onChange={(e) => {
+                                const newItems = [...editInvoiceData.lineItems];
+                                newItems[idx].description = e.target.value;
+                                setEditInvoiceData({ ...editInvoiceData, lineItems: newItems });
+                              }}
+                              className="w-full"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const newItems = [...editInvoiceData.lineItems];
+                                newItems[idx].quantity = parseInt(e.target.value) || 0;
+                                newItems[idx].total = newItems[idx].quantity * newItems[idx].unitPrice;
+                                setEditInvoiceData({ ...editInvoiceData, lineItems: newItems });
+                              }}
+                              className="w-24 text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={(e) => {
+                                const newItems = [...editInvoiceData.lineItems];
+                                newItems[idx].unitPrice = parseInt(e.target.value) || 0;
+                                newItems[idx].total = newItems[idx].quantity * newItems[idx].unitPrice;
+                                setEditInvoiceData({ ...editInvoiceData, lineItems: newItems });
+                              }}
+                              className="w-24 text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            ${item.total.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="font-bold border-t-2">
+                        <TableCell colSpan={3}>Total</TableCell>
+                        <TableCell className="text-right font-mono">
+                          ${editInvoiceData.lineItems
+                            .reduce((sum, item) => sum + item.total, 0)
+                            .toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6">
+                  <Button variant="outline" onClick={closeInvoiceEdit}>
+                    Cancel
+                  </Button>
+                  <Button onClick={saveInvoiceEdit} disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}      </DialogContent>
     </Dialog>
   );
 }

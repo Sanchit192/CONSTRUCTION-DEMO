@@ -257,6 +257,8 @@ const InvoiceWorkspace = () => {
             (sum: number, item: any) => sum + (item.total || 0),
             0
           );
+          const isInvoicePaid = String(sfInv.InvoiceStatus || '').toLowerCase() === 'to be paid';
+          const invoiceAnomaliesToUse = isInvoicePaid ? [] : (sfInv.Anomalies || []);
 
           salesforceInvoice = {
             id: sfInv.Id || 'N/A',
@@ -267,15 +269,16 @@ const InvoiceWorkspace = () => {
             dueDate: sfInv.Due_Date || '',
             lineItems: invoiceLineItems,
             totalAmount: invoiceTotal || sfInv.Amount || 0,
-            status: (sfInv.Anomalies?.length === 0 || !sfInv.Anomalies) && (sfInv.InvoiceStatus === 'To be Verified') ? 'pending' : (sfInv.InvoiceStatus || 'pending'),
-            anomalies: sfInv.Anomalies || [], // Store raw anomalies with Created_At for filtering
+            status: (invoiceAnomaliesToUse.length === 0) && (sfInv.InvoiceStatus === 'To be Verified') ? 'pending' : (sfInv.InvoiceStatus || 'pending'),
+            anomalies: invoiceAnomaliesToUse,
             hasBeenAnalyzed: (sfInv.Anomalies && sfInv.Anomalies.length >= 0),
           };
         }
       }
       
-      // Use only current anomalies from the response (don't use cache to ensure latest data)
-      const anomaliesToUse = invoice.Anomalies || [];
+      // If PO is already verified, suppress PO anomalies in frontend even if backend returns old records
+      const isPOVerified = invoice.PO_Status === 'Verified';
+      const anomaliesToUse = isPOVerified ? [] : (invoice.Anomalies || []);
       const hasAnomalies = anomaliesToUse && anomaliesToUse.length > 0;
       // PO is considered analyzed if it's in the analyzedPOs set OR if it's status is "Verified"
       const isAnalyzed = analyzedPOs.has(invoice.PO_Number) || invoice.PO_Status === 'Verified';
@@ -429,6 +432,89 @@ const InvoiceWorkspace = () => {
     }
   };
 
+  const handleDetailsResultUpdate = (updatedResult: MatchingResult) => {
+    setSelectedResult(updatedResult);
+
+    setInvoices((prevInvoices) =>
+      prevInvoices.map((inv) => {
+        const sameRecord =
+          (inv.Id && String(inv.Id) === String(updatedResult.purchaseOrder.id)) ||
+          String(inv.PO_Number || '') === String(updatedResult.poNumber || '');
+
+        if (!sameRecord) return inv;
+
+        const updatedPOLineItems = (updatedResult.purchaseOrder.lineItems || []).map((item: any) => ({
+          Id: item.id,
+          Description: item.description,
+          Quantity: Number(item.quantity) || 0,
+          Unit_Price: Number(item.unitPrice) || 0,
+          Total_Price_of_Line_Item: Number(item.total) || 0,
+        }));
+
+        const nextRecord: any = {
+          ...inv,
+          LineItems: updatedPOLineItems,
+          Total_PO_Price: Number(updatedResult.purchaseOrder.totalAmount) || inv.Total_PO_Price,
+          Due_Date: updatedResult.purchaseOrder.expectedDelivery || inv.Due_Date,
+          Client_Name: updatedResult.purchaseOrder.vendor || inv.Client_Name,
+        };
+
+        if (updatedResult.invoice) {
+          const updatedInvoiceLineItems = (updatedResult.invoice.lineItems || []).map((item: any) => ({
+            Id: item.id,
+            Description: item.description,
+            Quantity: Number(item.quantity) || 0,
+            Unit_Price: Number(item.unitPrice) || 0,
+            Total_Price_of_Line_Item: Number(item.total) || 0,
+          }));
+
+          const existingReceiptData = nextRecord.receiptData || {};
+          const existingInvoiceData = existingReceiptData.invoiceData;
+          const invoiceArray = Array.isArray(existingInvoiceData)
+            ? existingInvoiceData
+            : existingInvoiceData
+              ? [existingInvoiceData]
+              : [];
+
+          const targetOrderId = (updatedResult.invoice as any).orderId || updatedResult.purchaseOrder.OrderID;
+          const updatedInvoiceArray = invoiceArray.length === 0
+            ? [{
+                Id: updatedResult.invoice.id,
+                Invoice_Number: updatedResult.invoice.invoiceNumber,
+                PO_Number: updatedResult.invoice.poNumber,
+                OrderID: targetOrderId,
+                Client_Name: updatedResult.invoice.vendor,
+                Due_Date: updatedResult.invoice.dueDate,
+                LineItems: updatedInvoiceLineItems,
+                Amount: updatedResult.invoice.totalAmount,
+              }]
+            : invoiceArray.map((sfInvoice: any) => {
+                const sfOrderId = sfInvoice?.OrderID || sfInvoice?.orderId;
+                const matchesOrder = String(sfOrderId || '') === String(targetOrderId || '');
+                if (!matchesOrder) return sfInvoice;
+
+                return {
+                  ...sfInvoice,
+                  Client_Name: updatedResult.invoice?.vendor,
+                  Due_Date: updatedResult.invoice?.dueDate,
+                  LineItems: updatedInvoiceLineItems,
+                  Amount: updatedResult.invoice?.totalAmount,
+                };
+              });
+
+          nextRecord.receiptData = {
+            ...existingReceiptData,
+            invoiceData: Array.isArray(existingInvoiceData)
+              ? updatedInvoiceArray
+              : (updatedInvoiceArray[0] || existingInvoiceData),
+          };
+        }
+
+        return nextRecord;
+      })
+    );
+  };
+
   const handleAnalyze = async (result: MatchingResult, type: 'po' | 'receipt' | 'invoice') => {
     // Use the project name from the result (each PO has its own project)
     const projectName = result.projectName;
@@ -525,6 +611,10 @@ const InvoiceWorkspace = () => {
           const newResult = {
             ...prev,
             step1Anomalies: freshAnomalies,
+            purchaseOrder: {
+              ...prev.purchaseOrder,
+              status: freshAnomalies.length > 0 ? 'pending' : 'matched',
+            },
             receipt: receiptToSet,
             overallStatus,
           };
@@ -626,21 +716,46 @@ const InvoiceWorkspace = () => {
           };
         });
 
+        setInvoices((prevInvoices) =>
+          prevInvoices.map((inv) => {
+            const sameRecord =
+              inv.PO_Number === result.poNumber && inv.Project_Name === result.projectName;
+            if (!sameRecord) return inv;
+
+            const existingReceiptData = inv.receiptData || {};
+            return {
+              ...inv,
+              receiptData: {
+                ...existingReceiptData,
+                anomalies: data.anomalies || [],
+              },
+            };
+          })
+        );
+
         // If no receipt anomalies, fetch invoice from Salesforce
         if (receiptAnomalies.length === 0 && result.receipt) {
           console.log('No receipt anomalies, fetching invoice from Salesforce...');
           
-          const orderId = result.receipt.poNumber || result.purchaseOrder.poNumber;
-          
-          const invoiceRes = await fetch(
-            `${API_BASE}/projects/${encodeURIComponent(projectName)}/invoice/${encodeURIComponent(orderId)}`,
-            {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-            }
-          );
+          const orderId = result.purchaseOrder.OrderID || result.purchaseOrder.poNumber;
 
-          const invoiceData = await invoiceRes.json();
+          let invoiceData: any = null;
+          for (let attempt = 0; attempt < 4; attempt++) {
+            const invoiceRes = await fetch(
+              `${API_BASE}/projects/${encodeURIComponent(projectName)}/invoice/${encodeURIComponent(orderId)}`,
+              {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+              }
+            );
+
+            invoiceData = await invoiceRes.json();
+            if (invoiceData?.success && invoiceData?.invoice) {
+              break;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 800));
+          }
           
           if (invoiceData.success && invoiceData.invoice) {
             const invoiceArray = Array.isArray(invoiceData.invoice) ? invoiceData.invoice : [invoiceData.invoice];
@@ -675,6 +790,45 @@ const InvoiceWorkspace = () => {
                 invoice: parsedInvoice,
               };
             });
+
+            setInvoices((prevInvoices) =>
+              prevInvoices.map((inv) => {
+                const sameRecord =
+                  inv.PO_Number === result.poNumber && inv.Project_Name === result.projectName;
+                if (!sameRecord) return inv;
+
+                const existingReceiptData = inv.receiptData || {};
+                const existingInvoiceData = existingReceiptData.invoiceData;
+                const asArray = Array.isArray(existingInvoiceData)
+                  ? existingInvoiceData
+                  : existingInvoiceData
+                    ? [existingInvoiceData]
+                    : [];
+
+                const normalizedInvoice = {
+                  ...invoice,
+                  OrderID: invoice.OrderID || invoice.orderId || orderId,
+                };
+
+                const updatedArray = asArray.length === 0
+                  ? [normalizedInvoice]
+                  : asArray.map((item: any) => {
+                      const itemOrderId = item?.OrderID || item?.orderId;
+                      const matchesOrder = String(itemOrderId || '') === String(orderId || '');
+                      return matchesOrder ? { ...item, ...normalizedInvoice } : item;
+                    });
+
+                return {
+                  ...inv,
+                  receiptData: {
+                    ...existingReceiptData,
+                    invoiceData: Array.isArray(existingInvoiceData)
+                      ? updatedArray
+                      : (updatedArray[0] || existingInvoiceData),
+                  },
+                };
+              })
+            );
           } else {
             console.warn('Failed to fetch invoice:', invoiceData.error || 'Unknown error');
           }
@@ -765,10 +919,50 @@ const InvoiceWorkspace = () => {
               ? {
                   ...prev.invoice,
                   status: data.invoiceStatus === 'To be Paid' ? 'matched' : 'pending',
+                  hasBeenAnalyzed: true,
+                  anomalies: data.anomalies || [],
                 }
               : prev.invoice,
           };
         });
+
+        setInvoices((prevInvoices) =>
+          prevInvoices.map((inv) => {
+            const sameRecord =
+              inv.PO_Number === result.poNumber && inv.Project_Name === result.projectName;
+            if (!sameRecord) return inv;
+
+            const existingReceiptData = inv.receiptData || {};
+            const existingInvoiceData = existingReceiptData.invoiceData;
+            const invoiceArray = Array.isArray(existingInvoiceData)
+              ? existingInvoiceData
+              : existingInvoiceData
+                ? [existingInvoiceData]
+                : [];
+
+            const updatedInvoiceArray = invoiceArray.map((sfInvoice: any) => {
+              const sfOrderId = sfInvoice?.OrderID || sfInvoice?.orderId;
+              const matchesOrder = String(sfOrderId || '') === String(orderId || '');
+              if (!matchesOrder) return sfInvoice;
+
+              return {
+                ...sfInvoice,
+                InvoiceStatus: data.invoiceStatus || sfInvoice.InvoiceStatus,
+                Anomalies: data.anomalies || [],
+              };
+            });
+
+            return {
+              ...inv,
+              receiptData: {
+                ...existingReceiptData,
+                invoiceData: Array.isArray(existingInvoiceData)
+                  ? updatedInvoiceArray
+                  : (updatedInvoiceArray[0] || existingInvoiceData),
+              },
+            };
+          })
+        );
       }
     } catch (error) {
       console.error('Analyze and sync failed', error);
@@ -1103,6 +1297,7 @@ const InvoiceWorkspace = () => {
         open={detailsOpen}
         onOpenChange={handleDetailsOpenChange}
         onAnalyze={handleAnalyze}
+        onResultUpdate={handleDetailsResultUpdate}
         isAnalyzing={isAnalyzing}
           hasAnalyzed={selectedResult ? (analyzedPOs.has(selectedResult.purchaseOrder.poNumber) || selectedResult.purchaseOrder.status === 'matched') : false}
       />

@@ -1892,6 +1892,134 @@ def get_salesforce_access_token():
     return resp.json()
 
 
+def patch_salesforce_line_item(object_name: str, item_id: str, quantity, unit_price):
+    if not item_id:
+        return {
+            "success": False,
+            "status_code": 400,
+            "error": "id is required"
+        }
+
+    payload = {}
+    if quantity is not None:
+        payload["Quantity__c"] = quantity
+    if unit_price is not None:
+        payload["Unit_Price__c"] = unit_price
+
+    if not payload:
+        return {
+            "success": False,
+            "status_code": 400,
+            "error": "quantity or unitPrice is required"
+        }
+
+    sf_auth = get_salesforce_access_token()
+    access_token = sf_auth.get("access_token")
+    instance_url = sf_auth.get("instance_url")
+
+    if not access_token or not instance_url:
+        return {
+            "success": False,
+            "status_code": 500,
+            "error": "Missing Salesforce auth details"
+        }
+
+    item_url = instance_url.rstrip("/") + f"/services/data/v60.0/sobjects/{object_name}/{item_id}"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}",
+    }
+
+    resp = requests.patch(item_url, json=payload, headers=headers)
+    if resp.status_code not in (200, 204):
+        return {
+            "success": False,
+            "status_code": resp.status_code,
+            "error": "Salesforce update failed",
+            "details": resp.text
+        }
+
+    return {
+        "success": True,
+        "status_code": 200,
+        "data": {
+            "id": item_id,
+            "object": object_name,
+            "updatedFields": payload
+        }
+    }
+
+
+@app.route(
+    route="po-line-item",
+    methods=["PATCH"],
+    auth_level=func.AuthLevel.ANONYMOUS
+)
+def update_po_line_item(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = req.get_json()
+        item_id = body.get("id") or body.get("lineItemId")
+        quantity = body.get("quantity")
+        unit_price = body.get("unitPrice")
+
+        result = patch_salesforce_line_item("PO_Line_Item__c", item_id, quantity, unit_price)
+        if not result["success"]:
+            return func.HttpResponse(
+                json.dumps({"error": result.get("error"), "details": result.get("details")}),
+                status_code=result.get("status_code", 500),
+                mimetype="application/json"
+            )
+
+        return func.HttpResponse(
+            json.dumps({"success": True, "data": result.get("data")}),
+            status_code=200,
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        logging.exception("PO line item update failed")
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+
+@app.route(
+    route="invoice-line-item",
+    methods=["PATCH"],
+    auth_level=func.AuthLevel.ANONYMOUS
+)
+def update_invoice_line_item(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = req.get_json()
+        item_id = body.get("id") or body.get("lineItemId")
+        quantity = body.get("quantity")
+        unit_price = body.get("unitPrice")
+
+        result = patch_salesforce_line_item("Invoice_Line_Item__c", item_id, quantity, unit_price)
+        if not result["success"]:
+            return func.HttpResponse(
+                json.dumps({"error": result.get("error"), "details": result.get("details")}),
+                status_code=result.get("status_code", 500),
+                mimetype="application/json"
+            )
+
+        return func.HttpResponse(
+            json.dumps({"success": True, "data": result.get("data")}),
+            status_code=200,
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        logging.exception("Invoice line item update failed")
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+
 def fetch_receipt_data_by_order_id(order_id: str, project_name: str = None):
     """Fetch receipt data from Snowflake by OrderID including anomalies. 
     If receiptstatus is 'submitted', also fetch invoice data from Salesforce."""
