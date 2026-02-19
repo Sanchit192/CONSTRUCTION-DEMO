@@ -591,9 +591,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                     <Input
                       id="po-number"
                       value={editPOData.poNumber}
-                      onChange={(e) =>
-                        setEditPOData({ ...editPOData, poNumber: e.target.value })
-                      }
+                      disabled
                     />
                   </div>
                   <div>
@@ -601,9 +599,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                     <Input
                       id="po-vendor"
                       value={editPOData.vendor}
-                      onChange={(e) =>
-                        setEditPOData({ ...editPOData, vendor: e.target.value })
-                      }
+                      disabled
                     />
                   </div>
                   <div>
@@ -612,9 +608,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                       id="po-date"
                       type="date"
                       value={editPOData.date}
-                      onChange={(e) =>
-                        setEditPOData({ ...editPOData, date: e.target.value })
-                      }
+                      disabled
                     />
                   </div>
                   <div>
@@ -623,9 +617,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                       id="po-delivery"
                       type="date"
                       value={editPOData.expectedDelivery}
-                      onChange={(e) =>
-                        setEditPOData({ ...editPOData, expectedDelivery: e.target.value })
-                      }
+                      disabled
                     />
                   </div>
                 </div>
@@ -726,19 +718,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                     <Input
                       id="inv-number"
                       value={editInvoiceData.invoiceNumber}
-                      onChange={(e) =>
-                        setEditInvoiceData({ ...editInvoiceData, invoiceNumber: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="inv-po">PO Number</Label>
-                    <Input
-                      id="inv-po"
-                      value={editInvoiceData.poNumber}
-                      onChange={(e) =>
-                        setEditInvoiceData({ ...editInvoiceData, poNumber: e.target.value })
-                      }
+                      disabled
                     />
                   </div>
                   <div>
@@ -746,9 +726,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                     <Input
                       id="inv-vendor"
                       value={editInvoiceData.vendor}
-                      onChange={(e) =>
-                        setEditInvoiceData({ ...editInvoiceData, vendor: e.target.value })
-                      }
+                      disabled
                     />
                   </div>
                   <div>
@@ -757,9 +735,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                       id="inv-date"
                       type="date"
                       value={editInvoiceData.invoiceDate}
-                      onChange={(e) =>
-                        setEditInvoiceData({ ...editInvoiceData, invoiceDate: e.target.value })
-                      }
+                      disabled
                     />
                   </div>
                   <div>
@@ -768,9 +744,7 @@ export function MatchingDetails({ result, open, onOpenChange, onAnalyze, onResul
                       id="inv-due"
                       type="date"
                       value={editInvoiceData.dueDate}
-                      onChange={(e) =>
-                        setEditInvoiceData({ ...editInvoiceData, dueDate: e.target.value })
-                      }
+                      disabled
                     />
                   </div>
                 </div>
