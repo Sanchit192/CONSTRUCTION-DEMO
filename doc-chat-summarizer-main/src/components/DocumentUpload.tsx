@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Upload, FileText, Loader2, Flag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -73,11 +73,12 @@ export function DocumentUpload({
   };
 
   /* ---------------- FETCH FILES ---------------- */
-  const fetchFiles = async (project: string) => {
+  const fetchFiles = useCallback(async (project: string) => {
     const res = await fetch(`${API_BASE}/projects/${project}/files`);
     const data = await res.json();
 
     const fetchedFiles = data.map((f: string) => ({ name: f }));
+    const fetchedFileNames = fetchedFiles.map((f: UploadedFile) => f.name);
     setFiles(fetchedFiles);
     localStorage.setItem("filesList", JSON.stringify(fetchedFiles));
 
@@ -88,10 +89,10 @@ export function DocumentUpload({
       setSelectedFiles([finalForProject]);
       onFilesSelect([finalForProject]);
     } else {
-      setSelectedFiles([]);
-      onFilesSelect([]);
+      setSelectedFiles(fetchedFileNames);
+      onFilesSelect(fetchedFileNames);
     }
-  };
+  }, [finalFileByProject, onFilesSelect]);
 
   useEffect(() => {
     fetchProjects();
@@ -129,12 +130,20 @@ useEffect(() => {
   if (selectedProject && files.length === 0) {
     fetchFiles(selectedProject);
   }
-}, [selectedProject]);
+}, [selectedProject, files.length, fetchFiles]);
 
   /* ---------------- PROJECT HANDLING ---------------- */
   const handleProjectSelect = (value: string) => {
     setSelectedProject(value);
     setNewProject("");
+    if (value) {
+      fetchFiles(value);
+    } else {
+      setFiles([]);
+      setSelectedFiles([]);
+      setFinalFile(null);
+      onFilesSelect([]);
+    }
     onProjectSelect?.(value);
   };
 
@@ -245,9 +254,12 @@ useEffect(() => {
         finalFile,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error(error);
-    alert(error.message || "Something went wrong while finalizing");
+    const message = error instanceof Error
+      ? error.message
+      : "Something went wrong while finalizing";
+    alert(message);
   } finally {
     setLoading(false);
   }

@@ -2,38 +2,43 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-interface SignUpProps {
-  onSignUp: (session: string) => void;
+interface SignInProps {
+  onSignIn: (session: string) => void;
 }
 
-const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
+const ADMIN_EMAIL = "admin@cginfinity.com";
+const ADMIN_PASSWORD = "admin123";
+
+const SignIn: React.FC<SignInProps> = ({ onSignIn }) => {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !email || !password) {
-      alert("Please fill all fields");
+    if (!email || !password) {
+      alert("Please fill email and password");
       return;
     }
 
-    const user = { name, email };
+    if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
+      alert("Invalid email or password");
+      return;
+    }
+
+    const user = { name: "Admin", email: ADMIN_EMAIL };
     const session = JSON.stringify(user);
 
-    // Pass session to App so it updates state
-    onSignUp(session);
+    onSignIn(session);
 
-    // Redirect to Index
     navigate("/");
   };
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50">
       <form
-        onSubmit={handleSignUp}
+        onSubmit={handleSignIn}
         className="bg-white p-8 rounded shadow-md w-full max-w-md"
       >
         {/* Logo + Title */}
@@ -50,16 +55,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
             </div>
           </div>
 
-        <h2 className="text-xl font-semibold mb-4 text-center">Sign Up</h2>
-
-        <label className="block mb-2 text-sm font-medium">Full Name</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full mb-4 p-2 border rounded"
-          placeholder="Enter Your Name"
-        />
+        <h2 className="text-xl font-semibold mb-4 text-center">Sign In</h2>
 
         <label className="block mb-2 text-sm font-medium">Email</label>
         <input
@@ -67,7 +63,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="w-full mb-4 p-2 border rounded"
-          placeholder="example@email.com"
+          placeholder="admin@cginfinity.com"
         />
 
         <label className="block mb-2 text-sm font-medium">Password</label>
@@ -83,11 +79,11 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
           type="submit"
           className="w-full py-2  text-white rounded hover:bg-amber-600 transition"
         >
-          Sign Up
+          Sign In
         </Button>
       </form>
     </div>
   );
 };
 
-export default SignUp;
+export default SignIn;

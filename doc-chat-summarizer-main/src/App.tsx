@@ -8,7 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import DailyReports from "./components/dailyreports";
 import AppLayout from "./layouts/Applayout";
-import SignUp from "./pages/signup";
+import SignIn from "./pages/signup";
 import InvoiceWorkspace from "./components/invoice";
 import { ReceiptManagement } from "./components/ReceiptManagement";
 
@@ -19,7 +19,7 @@ function App() {
     localStorage.getItem("userSession")
   );
 
-  // Function to log in / sign up
+  // Function to log in
   const handleLogin = (session: string) => {
     localStorage.setItem("userSession", session);
     setUserSession(session);
@@ -42,12 +42,12 @@ function App() {
           <Routes>
             {/* Public route */}
             <Route
-              path="/signup"
+              path="/signin"
               element={
                 userSession ? (
                   <Navigate to="/" />
                 ) : (
-                  <SignUp onSignUp={handleLogin} />
+                  <SignIn onSignIn={handleLogin} />
                 )
               }
             />
@@ -59,7 +59,7 @@ function App() {
                 userSession ? (
                   <AppLayout user={JSON.parse(userSession)} onLogout={handleLogout} />
                 ) : (
-                  <Navigate to="/signup" />
+                  <Navigate to="/signin" />
                 )
               }
             >
